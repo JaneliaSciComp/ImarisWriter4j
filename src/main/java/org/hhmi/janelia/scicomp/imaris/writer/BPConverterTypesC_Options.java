@@ -7,15 +7,24 @@ public class BPConverterTypesC_Options extends Structure {
 	public static class ByReference extends BPConverterTypesC_Options implements Structure.ByReference {}
 	public static class ByValue extends BPConverterTypesC_Options implements Structure.ByValue {}
 
-	public int mThumbnailSizeXY; // 256, unsigned int
-	public boolean mFlipDimensionX; // false, bool
-	public boolean mFlipDimensionY; // false, bool
-	public boolean mFlipDimensionZ; // false, bool
-	public boolean mForceFileBlockSizeZ1; // false, bool
-	public boolean mEnableLogProgress; // false, bool
-	public int mNumberOfThreads; // 8, unsigned int
-	//public TCompressionAlgorithmType mCompressionAlgorithmType; // eCompressionAlgorithmGzipLevel2
-	public int mCompressionAlgorithmType;
+	public int mThumbnailSizeXY = 256; // 256, unsigned int
+	public boolean mFlipDimensionX = false; // false, bool
+	public boolean mFlipDimensionY = false; // false, bool
+	public boolean mFlipDimensionZ = false; // false, bool
+	public boolean mForceFileBlockSizeZ1 = false; // false, bool
+	public boolean mEnableLogProgress = false; // false, bool
+	public int mNumberOfThreads = 8; // 8, unsigned int
+	//public TCompressionAlgorithmType mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmNone; // eCompressionAlgorithmGzipLevel2
+	public int mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmNone.value;
+	
+	public BPConverterTypesC_Options() {
+		super(new ImarisWriterTypeMapper());
+		//this.mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmNone;
+	}
+	
+	public void setCompression(TCompressionAlgorithmType type) {
+		this.mCompressionAlgorithmType = (int) type.value;
+	}
 }
 
 /*

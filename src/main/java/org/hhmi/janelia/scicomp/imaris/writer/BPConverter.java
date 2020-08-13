@@ -1,24 +1,24 @@
 package org.hhmi.janelia.scicomp.imaris.writer;
 
+import java.util.Collections;
+import java.util.Map;
 import com.sun.jna.Callback;
 import com.sun.jna.CallbackThreadInitializer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
-import com.sun.jna.ptr.ByteByReference;
-import com.sun.jna.ptr.FloatByReference;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.ShortByReference;
 
 public class BPConverter {
-	/*public interface ZLib extends Library {
-		ZLib INSTANCE = (ZLib)
-				Native.load("zlib",ZLib.class);
-	}*/
+	static {
+		System.loadLibrary("zlib");
+		System.loadLibrary("hdf5");
+		//System.loadLibrary("zlibd");
+		//System.loadLibrary("hdf5_D");
+	}
 	public interface CLibrary extends Library {
-		//ZLib z = ZLib.INSTANCE;
+		Map<String, Object> OPTIONS = Collections.singletonMap(Library.OPTION_TYPE_MAPPER, new ImarisWriterTypeMapper());
 		CLibrary INSTANCE = (CLibrary)
-				Native.load("bpImarisWriter96",CLibrary.class);
+				Native.load("bpImarisWriter96",CLibrary.class,OPTIONS);
 
 		// typedef void(*bpConverterTypesC_ProgressCallback)(bpConverterTypesC_Float aProgress, bpConverterTypesC_UInt64 aTotalBytesWritten, void* aUserData);
 		public interface BPConverterTypesC_ProgressCallback extends Callback {
@@ -143,8 +143,11 @@ public class BPConverter {
 		aOptions.mForceFileBlockSizeZ1 = false;
 		aOptions.mEnableLogProgress = true;
 		aOptions.mNumberOfThreads = 8;
-		aOptions.mCompressionAlgorithmType = (int) TCompressionAlgorithmType.eCompressionAlgorithmGzipLevel2.value;
-		//aOptions.mCompressionAlgorithmType = 3;
+		aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmLZ4);
+		//aOptions.mCompressionAlgorithmType = (int) TCompressionAlgorithmType.eCompressionAlgorithmLZ4.value;
+		//aOptions.mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmGzipLevel2;
+		
+		System.out.println(aOptions.mCompressionAlgorithmType);
 
 		String aApplicationName = "TestC";
 		String aApplicationVersion = "1.0.0";
@@ -350,8 +353,6 @@ public class BPConverter {
 	}
 
 	public static void main(String[] args) {
-		System.loadLibrary("zlib");
-		System.loadLibrary("hdf5");
 		BPConverter conv = new BPConverter();
 		for (int vI = 0; vI < 2; ++vI) {
 			conv.testConvert(vI);
