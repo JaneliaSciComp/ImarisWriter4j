@@ -4,6 +4,10 @@ import com.sun.jna.Structure;
 
 // typedef const bpConverterTypesC_ColorInfos* bpConverterTypesC_ColorInfoVector;
 
+/**
+ * @author kittisopikulm
+ *
+ */
 @Structure.FieldOrder({"mValues","mValuesCount"})
 public class BPConverterTypesC_ColorInfos extends Structure {
 	public static class ByReference extends BPConverterTypesC_ColorInfos implements Structure.ByReference { }

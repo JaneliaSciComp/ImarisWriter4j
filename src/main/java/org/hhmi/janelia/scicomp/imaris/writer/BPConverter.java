@@ -3,28 +3,76 @@ package org.hhmi.janelia.scicomp.imaris.writer;
 import java.util.Collections;
 import java.util.Map;
 import com.sun.jna.Callback;
-import com.sun.jna.CallbackThreadInitializer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
+/**
+ * BPConverter is the main interface class for ImarisWriter Java Native Access bindings.
+ * It provides a low level interface to the ImarisWriter C interface.
+ * 
+ * This class depends on the bpImarisWriter96.{dll,so,dylib} shared library.
+ * which in turn depends on zlib and hdf5. It may also depend on lz4 but that is
+ * currently compiled in statically. 
+ * 
+ * @author kittisopikulm (Mark Kittisopikul)
+ *
+ */
 public class BPConverter {
 	static {
 		System.loadLibrary("zlib");
 		System.loadLibrary("hdf5");
+		//Debugging library names
 		//System.loadLibrary("zlibd");
 		//System.loadLibrary("hdf5_D");
 	}
+	
+	/**
+	 * 
+	 * CLibrary is JNA Library containing the main methods
+	 * @author kittisopikulm (Mark Kittisopikul)
+	 *
+	 */
 	public interface CLibrary extends Library {
 		Map<String, Object> OPTIONS = Collections.singletonMap(Library.OPTION_TYPE_MAPPER, new ImarisWriterTypeMapper());
 		CLibrary INSTANCE = (CLibrary)
 				Native.load("bpImarisWriter96",CLibrary.class,OPTIONS);
 
-		// typedef void(*bpConverterTypesC_ProgressCallback)(bpConverterTypesC_Float aProgress, bpConverterTypesC_UInt64 aTotalBytesWritten, void* aUserData);
+		/**
+		 * BPConverterTypesC_ProgressCallback provides a callback template to monitor progress.
+		 * See BPConverterTest for an example. 
+		 * 
+		 * It is the analog of this C typedef:
+		 * typedef void(*bpConverterTypesC_ProgressCallback)(bpConverterTypesC_Float aProgress, bpConverterTypesC_UInt64 aTotalBytesWritten, void* aUserData);
+		 * 
+		 * @author kittisopikulm (Mark Kittisopikul)
+		 * 
+		 * @see com.sun.jna.Callback
+		 * @see com.sun.jna.CallbackThreadInitializer
+		 * @see BPConverterTest
+		 *
+		 */
 		public interface BPConverterTypesC_ProgressCallback extends Callback {
 			void invoke(float aProgress, long aTotalBytesWritten, BPCallbackData aUserData);
 		}
 
+		
+		/**
+		 * bpImageConverterC_Create initializes an Imaris file
+		 * 
+		 * @param aDataType See BPConverterTypesC_DataType.value
+		 * @param aImageSize Describe the min and max coordinates
+		 * @param aSample Describe the sample size
+		 * @param aDimensionSequence Describe of the order of XYZCT
+		 * @param aFileBlockSize The size of a block
+		 * @param aOutputFile The output file name (output.ims)
+		 * @param aOptions Options for thumbnails, flipping dimensions, and compression
+		 * @param aApplicationName Name of your application
+		 * @param aApplicationVersion Version of your application
+		 * @param aProgressCallback Callback function to monitor and report progress
+		 * @param aCallbackUserData Callback data structure, can persist between callback calls
+		 * @return A pointer used by subsequent functions
+		 */
 		Pointer bpImageConverterC_Create(
 				int aDataType, BPConverterTypesC_Size5D aImageSize, BPConverterTypesC_Size5D aSample,
 				BPConverterTypesC_DimensionSequence5D aDimensionSequence, BPConverterTypesC_Size5D aFileBlockSize,
@@ -32,10 +80,30 @@ public class BPConverter {
 				String aApplicationName, String aApplicationVersion,
 				BPConverterTypesC_ProgressCallback aProgressCallback, BPCallbackData aCallbackUserData);
 
+		/**
+		 * bpImageConverterC_Destroy removes the structure created by bpImageConverterC_Create from memory
+		 * 
+		 * @param aImageConverterC Pointer returned by bpImageConverterC_Create
+		 */
 		void bpImageConverterC_Destroy(Pointer aImageConverterC);
 
+		/**
+		 * bpImageConverterC_GetLastException retrieves information about an exception that occurred
+		 * 
+		 * @param aImageConverterC
+		 * @return A String describing the last error that occurred
+		 * 
+		 * @see BPConverter#checkErrors(Pointer)
+		 */
 		String bpImageConverterC_GetLastException(Pointer aImageConverterC);
 
+		/**
+		 * bpImageConverterC_NeedCopyBlock
+		 * 
+		 * @param aImageConverterC
+		 * @param aBlockIndex
+		 * @return
+		 */
 		boolean bpImageConverterC_NeedCopyBlock(Pointer aImageConverterC, BPConverterTypesC_Index5D aBlockIndex);
 
 		//typedef unsigned char bpConverterTypesC_UInt8; 
@@ -51,11 +119,53 @@ public class BPConverter {
 		void BPImageConverterC_CopyBlockFloat(BPImageConverterCPtr aImageConverterC, FloatByReference aFileDataBlock, BPConverterTypesC_Index5D.ByReference aBlockIndex);
 		 */
 		//void BPImageConverterC_CopyBlockUInt8(BPImageConverterCPtr aImageConverterC, byte[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
+		
+		
+		/**
+		 * bpImageConverterC_CopyBlockUInt8 copies an unsigned byte array
+		 * 
+		 * @param aImageConverterC Pointer created by bpImageConverterC_Create
+		 * @param aFileDataBlock Data array
+		 * @param aBlockIndex Index for the block
+		 */
 		void bpImageConverterC_CopyBlockUInt8(Pointer aImageConverterC, byte[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
+		/**
+		 * bpImageConverterC_CopyBlockUInt16 copies an unsigned short array
+		 * 
+		 * @param aImageConverterC Pointer created by bpImageConverterC_Create
+		 * @param aFileDataBlock Data array
+		 * @param aBlockIndex Index for the block
+		 */
 		void bpImageConverterC_CopyBlockUInt16(Pointer aImageConverterC, short[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
+		/**
+		 * bpImageConverterC_CopyBlockUInt32 copies an unsigned int array
+		 * 
+		 * @param aImageConverterC Pointer created by bpImageConverterC_Create
+		 * @param aFileDataBlock Data array
+		 * @param aBlockIndex Index for the block
+		 */
 		void bpImageConverterC_CopyBlockUInt32(Pointer aImageConverterC, int[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
+		/**
+		 * bpImageConverterC_CopyBlockFloat copies a float array
+		 * 
+		 * @param aImageConverterC Pointer created by bpImageConverterC_Create
+		 * @param aFileDataBlock Data array
+		 * @param aBlockIndex Index for the block
+		 */
 		void bpImageConverterC_CopyBlockFloat(Pointer aImageConverterC, float[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
 
+		/**
+		 * bpImageConverterC_Finish
+		 * 
+		 * @param aImageConverterC Pointer created by bpImageConverterC_Create
+		 * @param aImageExtent Physical extent of the image
+		 * @param aParameters Container for an array of BPConverterTypesC_Parameter
+		 * @param aTimeInfoPerTimePoint Temporal data data
+		 * @param aColorInfoPerChannel Container for an array of BPConverterTypesC_TimeInfo
+		 * @param aAutoAdjustColorRange Boolean to determine if color range is adjusted
+		 * 
+		 * @see #bpImageConverterC_Create
+		 */
 		void bpImageConverterC_Finish(
 				Pointer aImageConverterC,
 				BPConverterTypesC_ImageExtent aImageExtent,
@@ -67,12 +177,24 @@ public class BPConverter {
 
 	}
 
-	public int numBlocks(int aSize, int aBlockSize)
+	/**
+	 * numBlocks is a static utility method to calculate the number of blocks
+	 * 
+	 * @param aSize
+	 * @param aBlockSize
+	 * @return
+	 */
+	public static int numBlocks(int aSize, int aBlockSize)
 	{
 		return (aSize + aBlockSize - 1) / aBlockSize;
 	}
 
-	public void checkErrors(Pointer aConverter)
+	/**
+	 * checkErrors is a static utility method to check for errors
+	 * 
+	 * @param aConverter Pointer created by bpImageConverterC_Create
+	 */
+	public static void checkErrors(Pointer aConverter)
 	{
 		String vException = CLibrary.INSTANCE.bpImageConverterC_GetLastException(aConverter);
 		if (vException != null && !vException.isEmpty()) {
@@ -80,285 +202,5 @@ public class BPConverter {
 			System.exit(1);
 		}
 	}
-
-	class ProgressCallback implements CLibrary.BPConverterTypesC_ProgressCallback {
-		public void invoke(float aProgress, long aTotalBytesWritten, BPCallbackData vCallbackData)
-		{
-			//BPCallbackData vCallbackData = aUserData;
-
-			int vProgress = (int)(aProgress * 100);
-			if (vProgress - vCallbackData.mProgress < 5 && vProgress != 100) {
-				return;
-			}
-
-			int vImageIndex = vCallbackData.mImageIndex;
-			if (aTotalBytesWritten < 10 * 1024 * 1024) {
-				System.out.println("Progress image " + vImageIndex + ":" + vProgress + "% [" + (aTotalBytesWritten / 1024) + " KB]");
-				//printf("Progress image %u: %d%% [%llu KB]\n", vImageIndex, vProgress, aTotalBytesWritten / 1024);
-			}
-			else {
-				System.out.println("Progress image " + vImageIndex + ":" + vProgress + "% [" + (aTotalBytesWritten / (1024 * 1024)) + " MB]");
-				//printf("Progress image %u: %d%% [%llu MB]\n", vImageIndex, vProgress, aTotalBytesWritten / (1024 * 1024));
-			}
-			vCallbackData.mProgress = vProgress;
-		}
-	}
-
-	public void testConvert(int aTestIndex)
-	{
-		String aOutputFile = "./out_" + aTestIndex + ".ims";
-		int aDataType = BPConverterTypesC_DataType.bpConverterTypesC_UInt8Type.value;
-		BPConverterTypesC_Size5D aImageSize = new BPConverterTypesC_Size5D();
-		aImageSize.mValueX = 512;
-		aImageSize.mValueY = 512;
-		aImageSize.mValueZ = 32;
-		aImageSize.mValueT = 4;
-		aImageSize.mValueC = 2;
-		float vVoxelSizeXY = 1.4f;
-		float vVoxelSizeZ = 5.4f;
-		BPConverterTypesC_ImageExtent aImageExtent = new BPConverterTypesC_ImageExtent(
-				0, 0, 0,
-				aImageSize.mValueX * vVoxelSizeXY,
-				aImageSize.mValueY * vVoxelSizeXY,
-				aImageSize.mValueZ * vVoxelSizeZ
-				);
-		BPConverterTypesC_Size5D aSample = new BPConverterTypesC_Size5D( 1, 1, 1, 1, 1 );
-
-		BPConverterTypesC_DimensionSequence5D aDimensionSequence = new BPConverterTypesC_DimensionSequence5D(
-				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionX.value,
-				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionY.value,
-				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionZ.value,
-				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionC.value,
-				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionT.value
-				);
-		BPConverterTypesC_Size5D aBlockSize = new BPConverterTypesC_Size5D(256, 256, 8, 1, 1);
-
-		//String aOutputFile = "./out_" + aTestIndex + ".ims";
-
-		BPConverterTypesC_Options aOptions = new BPConverterTypesC_Options();
-		aOptions.mThumbnailSizeXY = 256;
-		aOptions.mFlipDimensionX = false;
-		aOptions.mFlipDimensionY = false;
-		aOptions.mFlipDimensionZ = false;
-		aOptions.mForceFileBlockSizeZ1 = false;
-		aOptions.mEnableLogProgress = true;
-		aOptions.mNumberOfThreads = 8;
-		aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmLZ4);
-		//aOptions.mCompressionAlgorithmType = (int) TCompressionAlgorithmType.eCompressionAlgorithmLZ4.value;
-		//aOptions.mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmGzipLevel2;
-		
-		System.out.println(aOptions.mCompressionAlgorithmType);
-
-		String aApplicationName = "TestC";
-		String aApplicationVersion = "1.0.0";
-		CLibrary.BPConverterTypesC_ProgressCallback aProgressCallback = new ProgressCallback();
-		Native.setCallbackThreadInitializer(aProgressCallback, new CallbackThreadInitializer());
-
-		BPCallbackData aCallbackUserData = new BPCallbackData();
-		aCallbackUserData.mImageIndex = aTestIndex;
-		aCallbackUserData.mProgress = -5;
-
-		/*
-		 * bpImageConverterCPtr vConverter = bpImageConverterC_Create( aDataType,
-		 * &aImageSize, &aSample, &aDimensionSequence, &aBlockSize, aOutputFile,
-		 * &aOptions, aApplicationName, aApplicationVersion, aProgressCallback,
-		 * &aCallbackUserData );
-		 */
-
-		//BPImageConverterCPtr
-		System.out.println("create");
-		Pointer vConverter = CLibrary.INSTANCE.bpImageConverterC_Create(
-				aDataType, aImageSize, aSample,
-				aDimensionSequence, aBlockSize,
-				aOutputFile, aOptions,
-				aApplicationName, aApplicationVersion,
-				aProgressCallback, aCallbackUserData
-				);
-		checkErrors(vConverter);
-		System.out.println("done with create");
-
-
-		// unsigned long long
-		//use int because this is an index
-		int vBlockSize =
-				aBlockSize.mValueX *
-				aBlockSize.mValueY * aBlockSize.mValueZ *
-				aBlockSize.mValueC * aBlockSize.mValueT;
-
-		//unsigned char* vData = malloc(vBlockSize);
-		byte[] vData = new byte[vBlockSize];
-		for (int vIndex = 0; vIndex < vBlockSize; ++vIndex) {
-			vData[vIndex] = (byte)(vIndex % 256);
-		}
-
-		int vNBlocksX = numBlocks(aImageSize.mValueX, aBlockSize.mValueX);
-		int vNBlocksY = numBlocks(aImageSize.mValueY, aBlockSize.mValueY);
-		int vNBlocksZ = numBlocks(aImageSize.mValueZ, aBlockSize.mValueZ);
-		int vNBlocksC = numBlocks(aImageSize.mValueC, aBlockSize.mValueC);
-		int vNBlocksT = numBlocks(aImageSize.mValueT, aBlockSize.mValueT);
-
-		BPConverterTypesC_Index5D aBlockIndex = new BPConverterTypesC_Index5D();
-		
-		//int debugLoop = 0;
-
-		for (int vC = 0; vC < vNBlocksC; ++vC) {
-			aBlockIndex.mValueC = vC;
-			for (int vT = 0; vT < vNBlocksT; ++vT) {
-				aBlockIndex.mValueT = vT;
-				for (int vZ = 0; vZ < vNBlocksZ; ++vZ) {
-					aBlockIndex.mValueZ = vZ;
-					for (int vY = 0; vY < vNBlocksY; ++vY) {
-						aBlockIndex.mValueY = vY;
-						for (int vX = 0; vX < vNBlocksX; ++vX) {
-							aBlockIndex.mValueX = vX;
-							//System.out.println("loop: " + debugLoop++);
-							//void BPImageConverterC_CopyBlockUInt8(BPImageConverterCPtr aImageConverterC, ByteByReference aFileDataBlock, BPConverterTypesC_Index5D.ByReference aBlockIndex);
-							CLibrary.INSTANCE.bpImageConverterC_CopyBlockUInt8(vConverter, vData, aBlockIndex);
-							checkErrors(vConverter);
-						}
-					}
-				}
-			}
-		}
-
-		//free(vData);
-
-		int vNumberOfOtherSections = 1; // Image
-		int vNumberOfSections = vNumberOfOtherSections + aImageSize.mValueC;
-		//bpConverterTypesC_ParameterSection* vParameterSections = malloc(vNumberOfSections * sizeof(bpConverterTypesC_ParameterSection));
-
-		BPConverterTypesC_Parameters aParameters = new BPConverterTypesC_Parameters();
-		aParameters.mValuesCount = vNumberOfSections;
-		aParameters.mValues = new BPConverterTypesC_ParameterSection.ByReference();
-		
-		BPConverterTypesC_ParameterSection.ByReference[] vParameterSections = aParameters.mValues.toArray(aParameters.mValuesCount);
-
-		BPConverterTypesC_Parameter.ByReference vUnitParameter = new BPConverterTypesC_Parameter.ByReference("Unit", "um");
-		BPConverterTypesC_ParameterSection.ByReference vImageSection = vParameterSections[0];
-		vImageSection = vParameterSections[0];
-		vImageSection.mName = "Image";
-		vImageSection.mValuesCount = 1;
-		vImageSection.mValues = vUnitParameter;
-
-		//char vChannelNamesBuffer[1024]; // will this be enough?
-		//char* vChannelNameBuffer = vChannelNamesBuffer;
-		//String vChannelNameBuffer = new String();
-		//StringBuffer vChannelNameBuffer = new StringBuffer(1024);
-
-		int vNumberOfParametersPerChannel = 3;
-		//bpConverterTypesC_Parameter* vChannelParameters = malloc(aImageSize.mValueC * vNumberOfParametersPerChannel * sizeof(bpConverterTypesC_Parameter));
-		//BPConverterTypesC_Parameter[] vChannelParameters = new BPConverterTypesC_Parameter[aImageSize.mValueC * vNumberOfParametersPerChannel];
-
-
-		//int vThisChannelParameters_idx = 0;
-		for (int vC = 0; vC < aImageSize.mValueC; ++vC) {
-			/*BPConverterTypesC_Parameter vThisChannelParameters = vChannelParameters[vNumberOfParametersPerChannel * vC];*/
-			//vThisChannelParameters_idx = vNumberOfParametersPerChannel * vC;
-			//check this for memory
-			//BPConverterTypesC_Parameter.ByReference[] vThisChannelParameters = new BPConverterTypesC_Parameter.ByReference[vNumberOfParametersPerChannel];
-			
-			BPConverterTypesC_ParameterSection.ByReference vChannelSection = vParameterSections[vNumberOfOtherSections + vC];
-			vChannelSection.mValues = new BPConverterTypesC_Parameter.ByReference();
-			
-			BPConverterTypesC_Parameter.ByReference[] vThisChannelParameters = vChannelSection.mValues.toArray(vNumberOfParametersPerChannel);
-			//vThisChannelParameters[0] = new BPConverterTypesC_Parameter.ByReference();
-			vThisChannelParameters[0].mName = "Name";
-			vThisChannelParameters[0].mValue = vC == 0 ? "First channel" : vC == 1 ? "Second channel" : vC == 2 ? "Third channel" : "Other channel";
-			//vThisChannelParameters[1] = new BPConverterTypesC_Parameter.ByReference();
-			vThisChannelParameters[1].mName = "LSMEmissionWavelength";
-			vThisChannelParameters[1].mValue = "700";
-			//vThisChannelParameters[2] = new BPConverterTypesC_Parameter.ByReference();
-			vThisChannelParameters[2].mName = "OtherChannelParameter";
-			vThisChannelParameters[2].mValue = "OtherChannelValue";
-			//BPConverterTypesC_ParameterSection vChannelSection = vParameterSections[vNumberOfOtherSections + vC];
-			//vChannelNameBuffer.append("Channel ");
-
-			/*int vChannelNameLength = sprintf(vChannelNameBuffer, "Channel %i", vC);
-	    vChannelSection.mName = "Channel " + vC;
-	    vChannelNameBuffer += vChannelNameLength + 1;
-			 */
-			//BPConverterTypesC_ParameterSection.ByReference vChannelSection = new BPConverterTypesC_ParameterSection.ByReference();
-			//BPConverterTypesC_ParameterSection.ByReference vChannelSection = new BPConverterTypesC_ParameterSection.ByReference();
-			vChannelSection.mName = "Channel " + vC;
-			//vChannelSection.mValues = vThisChannelParameters;
-			vChannelSection.mValuesCount = vNumberOfParametersPerChannel;
-		}
-
-		BPConverterTypesC_TimeInfos aTimeInfoPerTimePoint = new BPConverterTypesC_TimeInfos();
-		aTimeInfoPerTimePoint.mValuesCount = aImageSize.mValueT;
-		aTimeInfoPerTimePoint.mValues = new BPConverterTypesC_TimeInfo.ByReference();
-
-		BPConverterTypesC_TimeInfo.ByReference[] vTimeInfos = aTimeInfoPerTimePoint.mValues.toArray(aImageSize.mValueT);
-		for (int vT = 0; vT < aImageSize.mValueT; ++vT) {
-			//vTimeInfos[vT] = new BPConverterTypesC_TimeInfo.ByReference();
-			vTimeInfos[vT].mJulianDay = 2458885; // 5 feb 2020
-			long vSeconds = vT + 4 + 60 * (27 + 60 * 15); // 3:27.04 PM + 1 sec per time point
-			vTimeInfos[vT].mNanosecondsOfDay = vSeconds * 1000000000;
-		}
-
-		
-		BPConverterTypesC_ColorInfos aColorInfoPerChannel = new BPConverterTypesC_ColorInfos();
-		aColorInfoPerChannel.mValuesCount = aImageSize.mValueC;
-		aColorInfoPerChannel.mValues = new BPConverterTypesC_ColorInfo.ByReference();
-
-		BPConverterTypesC_ColorInfo.ByReference[] vColorInfos = aColorInfoPerChannel.mValues.toArray(aImageSize.mValueC);
-		for (int vC = 0; vC < aImageSize.mValueC; ++vC) {
-			BPConverterTypesC_ColorInfo vColor = vColorInfos[vC];
-			vColor.mIsBaseColorMode = true;
-			vColor.mBaseColor = new BPConverterTypesC_Color();
-			vColor.mBaseColor.mRed =   (vC % 3) == 0 ? 1.0f : 0.0f;
-			vColor.mBaseColor.mGreen = (vC % 3) == 1 ? 1.0f : 0.0f;
-			vColor.mBaseColor.mBlue =  (vC % 3) == 2 ? 1.0f : 0.0f;
-			vColor.mBaseColor.mAlpha = 1;
-			vColor.mColorTableSize = 0;
-			vColor.mOpacity = 0;
-			vColor.mRangeMin = 0;
-			vColor.mRangeMax = 255;
-			vColor.mGammaCorrection = 1;
-			/*
-	    vColor->mIsBaseColorMode = true;
-	    vColor->mBaseColor.mRed =   (vC % 3) == 0 ? 1.0f : 0.0f;
-	    vColor->mBaseColor.mGreen = (vC % 3) == 1 ? 1.0f : 0.0f;
-	    vColor->mBaseColor.mBlue =  (vC % 3) == 2 ? 1.0f : 0.0f;
-	    vColor->mBaseColor.mAlpha = 1;
-	    vColor->mColorTableSize = 0;
-	    vColor->mOpacity = 0;
-	    vColor->mRangeMin = 0;
-	    vColor->mRangeMax = 255;
-	    vColor->mGammaCorrection = 1;
-			 */
-		}
-
-
-		boolean aAutoAdjustColorRange = true;
-
-		/*	  bpImageConverterC_Finish(vConverter,
-			    &aImageExtent, &aParameters, &aTimeInfoPerTimePoint,
-			    &aColorInfoPerChannel, aAutoAdjustColorRange);*/
-		
-		System.out.println("Finishing");
-		CLibrary.INSTANCE.bpImageConverterC_Finish(vConverter,
-				aImageExtent, aParameters, aTimeInfoPerTimePoint,
-				aColorInfoPerChannel, aAutoAdjustColorRange);
-		checkErrors(vConverter);
-		System.out.println("Done Finishing");
-
-		//free(vTimeInfos);
-		//free(vColorInfos);
-
-		//free(vParameterSections);
-		//free(vChannelParameters);
-
-		CLibrary.INSTANCE.bpImageConverterC_Destroy(vConverter);
-	}
-
-	public static void main(String[] args) {
-		BPConverter conv = new BPConverter();
-		for (int vI = 0; vI < 2; ++vI) {
-			conv.testConvert(vI);
-		}
-	}
-
-
-
+	
 }

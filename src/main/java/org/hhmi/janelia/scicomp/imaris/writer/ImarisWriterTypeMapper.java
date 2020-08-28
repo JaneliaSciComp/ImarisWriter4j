@@ -5,32 +5,32 @@ import com.sun.jna.FromNativeContext;
 import com.sun.jna.ToNativeContext;
 import com.sun.jna.TypeConverter;
 
+/**
+ * ImarisWriterTypeMapper currently converts Java boolean to C99 bool (a byte)
+ * 
+ * @author kittisopikulm
+ *
+ */
 public class ImarisWriterTypeMapper extends DefaultTypeMapper implements TypeConverter {
 	
 	public ImarisWriterTypeMapper() {
-		// TODO Auto-generated constructor stub
 		this.addTypeConverter(Boolean.class, this);
 		//this.addTypeConverter(TCompressionAlgorithmType.class, new TCompressionAlgorithmType.CompressionAlgorithmTypeConverter());
 	}
 	
 	public Object fromNative(Object nativeValue, FromNativeContext context) {
-		// TODO Auto-generated method stub
-		//System.out.println("fromNative");
+
 		return ( (byte) nativeValue ) != 0;
 	}
 
 	public Class<?> nativeType() {
-		// TODO Auto-generated method stub
 		return byte.class;
 	}
 
-	public Object toNative(Object value, ToNativeContext context) {
-		/*
-		 * System.out.println("toNative"); System.out.println(context.getClass());
-		 * if(context instanceof MethodParameterContext) {
-		 * System.out.println(((MethodParameterContext) context).getMethod()); }
-		 */
-		// TODO Auto-generated method stub
+	public Object toNative(Object value, ToNativeContext context) {	
+		//An example context would be MethodParameterContext
+		
+		// Use C99 bool which is a byte (rather than an int)
         if(value.getClass() == Boolean.class) {
             value = (boolean) value;
         }
@@ -40,23 +40,5 @@ public class ImarisWriterTypeMapper extends DefaultTypeMapper implements TypeCon
             return (byte) 0;
         }
 	}
-
-	
-	/*
-	 * @Override public FromNativeConverter getFromNativeConverter(Class<?>
-	 * javaType) { // TODO Auto-generated method stub
-	 * System.out.println("getFromNativeConverter: " + javaType); return
-	 * super.getFromNativeConverter(javaType); }
-	 * 
-	 * @Override public ToNativeConverter getToNativeConverter(Class<?> javaType) {
-	 * // TODO Auto-generated method stub
-	 * System.out.println("getToNativeConverter: " + javaType); return
-	 * super.getToNativeConverter(javaType); }
-	 */
-	 
-	
-	
-
-
 
 }

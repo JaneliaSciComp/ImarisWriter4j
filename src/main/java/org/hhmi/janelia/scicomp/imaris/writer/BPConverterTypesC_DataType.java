@@ -6,6 +6,14 @@ typedef unsigned int bpConverterTypesC_UInt32;
 typedef unsigned long long bpConverterTypesC_UInt64;
 typedef float bpConverterTypesC_Float;*/
 
+/**
+ * BPConverterTypesC_DataType
+ * 
+ * Just use the value to pass information
+ * 
+ * @author kittisopikulm
+ *
+ */
 public enum BPConverterTypesC_DataType {
 	  bpConverterTypesC_UInt8Type(0),
 	  bpConverterTypesC_UInt16Type(1),

@@ -2,6 +2,10 @@ package org.hhmi.janelia.scicomp.imaris.writer;
 
 import com.sun.jna.Structure;
 
+/**
+ * @author kittisopikulm
+ *
+ */
 @Structure.FieldOrder({"mIsBaseColorMode","mBaseColor","mColorTable","mColorTableSize","mOpacity","mRangeMin","mRangeMax","mGammaCorrection"})
 public class BPConverterTypesC_ColorInfo extends Structure {
 	public static class ByReference extends BPConverterTypesC_ColorInfo implements Structure.ByReference {
