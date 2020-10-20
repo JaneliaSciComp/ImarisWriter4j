@@ -1,7 +1,5 @@
 package org.hhmi.janelia.scicomp.imaris.writer.test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.hhmi.janelia.scicomp.imaris.writer.BPCallbackData;
 import org.hhmi.janelia.scicomp.imaris.writer.BPConverter;
 import org.hhmi.janelia.scicomp.imaris.writer.BPConverterTypesC_Color;
