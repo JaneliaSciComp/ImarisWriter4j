@@ -3,6 +3,7 @@ package org.hhmi.janelia.scicomp.imaris.writer.bdv;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +131,8 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionC.value,
 					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionT.value
 					);
+			
+			System.out.println(Arrays.toString(blockSize));
 			
 			BPConverterTypesC_Size5D aFileBlockSize = new BPConverterTypesC_Size5D(blockSize);
 			
