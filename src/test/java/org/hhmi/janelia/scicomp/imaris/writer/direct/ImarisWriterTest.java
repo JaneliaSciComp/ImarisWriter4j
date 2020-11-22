@@ -1,5 +1,8 @@
-package org.hhmi.janelia.scicomp.imaris.writer.test;
+package org.hhmi.janelia.scicomp.imaris.writer.direct;
 
+import java.nio.ShortBuffer;
+
+import org.apache.commons.math3.random.MersenneTwister;
 import org.hhmi.janelia.scicomp.imaris.writer.BPCallbackData;
 import org.hhmi.janelia.scicomp.imaris.writer.BPConverter;
 import org.hhmi.janelia.scicomp.imaris.writer.BPConverterTypesC_Color;
@@ -26,15 +29,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.sun.jna.CallbackThreadInitializer;
+import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
-import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
-
-import org.apache.commons.math3.random.MersenneTwister;
-
-class BPConverterTest {
+class ImarisWriterTest {
 	
 	class ProgressCallback implements CLibrary.BPConverterTypesC_ProgressCallback {
 		public void invoke(float aProgress, long aTotalBytesWritten, BPCallbackData vCallbackData)
@@ -136,8 +135,7 @@ class BPConverterTest {
 		aOptions.mForceFileBlockSizeZ1 = false;
 		aOptions.mEnableLogProgress = true;
 		aOptions.mNumberOfThreads = 8;
-		aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmNone);
-		//aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmLZ4);
+		aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmLZ4);
 		//aOptions.mCompressionAlgorithmType = (int) TCompressionAlgorithmType.eCompressionAlgorithmLZ4.value;
 		//aOptions.mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmGzipLevel2;
 		
@@ -165,7 +163,7 @@ class BPConverterTest {
 
 		System.out.println("create");
 		//Returns a bpImageConverterCPtr
-		Pointer vConverter = CLibrary.INSTANCE.bpImageConverterC_Create(
+		Pointer vConverter = ImarisWriter.bpImageConverterC_Create(
 				aDataType, aImageSize, aSample,
 				aDimensionSequence, aBlockSize,
 				aOutputFile, aOptions,
@@ -211,7 +209,7 @@ class BPConverterTest {
 							aBlockIndex.mValueX = vX;
 							//System.out.println("loop: " + debugLoop++);
 							//void BPImageConverterC_CopyBlockUInt8(BPImageConverterCPtr aImageConverterC, ByteByReference aFileDataBlock, BPConverterTypesC_Index5D.ByReference aBlockIndex);
-							CLibrary.INSTANCE.bpImageConverterC_CopyBlockUInt8(vConverter, vData, aBlockIndex);
+							ImarisWriter.bpImageConverterC_CopyBlockUInt8(vConverter, vData, aBlockIndex);
 							BPConverter.checkErrors(vConverter);
 						}
 					}
@@ -335,7 +333,7 @@ class BPConverterTest {
 			    &aColorInfoPerChannel, aAutoAdjustColorRange);*/
 		
 		System.out.println("Finishing");
-		CLibrary.INSTANCE.bpImageConverterC_Finish(vConverter,
+		ImarisWriter.bpImageConverterC_Finish(vConverter,
 				aImageExtent, aParameters, aTimeInfoPerTimePoint,
 				aColorInfoPerChannel, aAutoAdjustColorRange);
 		BPConverter.checkErrors(vConverter);
@@ -347,7 +345,7 @@ class BPConverterTest {
 		//free(vParameterSections);
 		//free(vChannelParameters);
 
-		CLibrary.INSTANCE.bpImageConverterC_Destroy(vConverter);
+		ImarisWriter.bpImageConverterC_Destroy(vConverter);
 	}
 	
 	void doConvert16(int aTestIndex) {
@@ -397,7 +395,7 @@ class BPConverterTest {
 		aOptions.mFlipDimensionY = false;
 		aOptions.mFlipDimensionZ = false;
 		aOptions.mForceFileBlockSizeZ1 = false;
-		aOptions.mEnableLogProgress = true;
+		aOptions.mEnableLogProgress = false;
 		aOptions.mNumberOfThreads = 8;
 		aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmLShuffleLZ4);
 		//aOptions.setCompression(TCompressionAlgorithmType.eCompressionAlgorithmNone);
@@ -429,7 +427,7 @@ class BPConverterTest {
 
 		System.out.println("create");
 		//Returns a bpImageConverterCPtr
-		Pointer vConverter = CLibrary.INSTANCE.bpImageConverterC_Create(
+		Pointer vConverter = ImarisWriter.bpImageConverterC_Create(
 				aDataType, aImageSize, aSample,
 				aDimensionSequence, aBlockSize,
 				aOutputFile, aOptions,
@@ -465,12 +463,18 @@ class BPConverterTest {
 		float vCorrelationCoefficient = 0.7f;
 
 		//unsigned char* vData = malloc(vBlockSize);
-		short[] vData = new short[vBlockSize * 2];
+		Memory vDataNative = new Memory(vBlockSize * 2 * 2);
+		ShortBuffer vDataBuffer = vDataNative.getByteBuffer(0, vBlockSize * 2 * 2).asShortBuffer();
+		//short[] vData = new short[vBlockSize * 2];
 		for (int vIndex = 0; vIndex < vBlockSize * 2; ++vIndex) {
 			//vData[vIndex] = (short) (vIndex % 256);
 			double vRandom = (1 - vCorrelationCoefficient) * (mt.nextGaussian()*40 + 100) + vCorrelationCoefficient * vPrevious;
-			vData[vIndex] = (short) (vRandom > 0 ? (vRandom < (1 << 12) ? vRandom : (1<<12)) : 0);
+			//vData[vIndex] = (short) (vRandom > 0 ? (vRandom < (1 << 12) ? vRandom : (1<<12)) : 0);
+			vDataBuffer.put(vIndex, (short) (vRandom > 0 ? (vRandom < (1 << 12) ? vRandom : (1<<12)) : 0) );
 		}
+		
+		//vDataNative.write(0, vData, 0, vBlockSize * 2);
+		
 		
 
 		int vNBlocksX = BPConverter.numBlocks(aImageSize.mValueX, aBlockSize.mValueX);
@@ -505,7 +509,8 @@ class BPConverterTest {
 							//void BPImageConverterC_CopyBlockUInt8(BPImageConverterCPtr aImageConverterC, ByteByReference aFileDataBlock, BPConverterTypesC_Index5D.ByReference aBlockIndex);
 							//CLibrary.INSTANCE.bpImageConverterC_CopyBlockUInt16(vConverter, vData, aBlockIndex);
 							int vRandomOffset = mt.nextInt(vBlockSize);
-							CLibrary.INSTANCE.bpImageConverterC_CopyBlockUInt16(vConverter, ShortBuffer.wrap(vData, vRandomOffset, vBlockSize), aBlockIndex);
+							//ImarisWriter.bpImageConverterC_CopyBlockUInt16(vConverter, ShortBuffer.wrap(vData, vRandomOffset, vBlockSize), aBlockIndex);
+							ImarisWriter.bpImageConverterC_CopyBlockUInt16(vConverter, vDataNative.share(vRandomOffset*2,vBlockSize*2), aBlockIndex);
 							BPConverter.checkErrors(vConverter);
 						}
 					}
@@ -629,7 +634,7 @@ class BPConverterTest {
 			    &aColorInfoPerChannel, aAutoAdjustColorRange);*/
 		
 		System.out.println("Finishing");
-		CLibrary.INSTANCE.bpImageConverterC_Finish(vConverter,
+		ImarisWriter.bpImageConverterC_Finish(vConverter,
 				aImageExtent, aParameters, aTimeInfoPerTimePoint,
 				aColorInfoPerChannel, aAutoAdjustColorRange);
 		BPConverter.checkErrors(vConverter);
@@ -641,7 +646,7 @@ class BPConverterTest {
 		//free(vParameterSections);
 		//free(vChannelParameters);
 
-		CLibrary.INSTANCE.bpImageConverterC_Destroy(vConverter);
+		ImarisWriter.bpImageConverterC_Destroy(vConverter);
 		
 	    long endTime = System.currentTimeMillis();
 	    System.out.println("Total execution time: " + (endTime-startTime) + "ms"); 

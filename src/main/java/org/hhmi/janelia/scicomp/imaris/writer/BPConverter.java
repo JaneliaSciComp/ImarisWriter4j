@@ -1,5 +1,6 @@
 package org.hhmi.janelia.scicomp.imaris.writer;
 
+import java.nio.ShortBuffer;
 import java.util.Collections;
 import java.util.Map;
 import com.sun.jna.Callback;
@@ -137,6 +138,7 @@ public class BPConverter {
 		 * @param aBlockIndex Index for the block
 		 */
 		void bpImageConverterC_CopyBlockUInt16(Pointer aImageConverterC, short[] aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
+		void bpImageConverterC_CopyBlockUInt16(Pointer aImageConverterC, ShortBuffer aFileDataBlock, BPConverterTypesC_Index5D aBlockIndex);
 		/**
 		 * bpImageConverterC_CopyBlockUInt32 copies an unsigned int array
 		 * 
@@ -198,8 +200,7 @@ public class BPConverter {
 	{
 		String vException = CLibrary.INSTANCE.bpImageConverterC_GetLastException(aConverter);
 		if (vException != null && !vException.isEmpty()) {
-			System.out.print(vException);
-			System.exit(1);
+			throw new ImarisWriterError(vException);
 		}
 	}
 	

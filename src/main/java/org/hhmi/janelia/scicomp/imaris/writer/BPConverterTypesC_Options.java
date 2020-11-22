@@ -2,7 +2,9 @@ package org.hhmi.janelia.scicomp.imaris.writer;
 
 import com.sun.jna.Structure;
 
-@Structure.FieldOrder({"mThumbnailSizeXY","mFlipDimensionX","mFlipDimensionY","mFlipDimensionZ","mForceFileBlockSizeZ1","mEnableLogProgress","mNumberOfThreads","mCompressionAlgorithmType"})
+@Structure.FieldOrder({"mThumbnailSizeXY","mFlipDimensionX","mFlipDimensionY","mFlipDimensionZ",
+	"mForceFileBlockSizeZ1","mEnableLogProgress","mNumberOfThreads","mCompressionAlgorithmType",
+	"mDisablePyramid"})
 public class BPConverterTypesC_Options extends Structure {
 	public static class ByReference extends BPConverterTypesC_Options implements Structure.ByReference {}
 	public static class ByValue extends BPConverterTypesC_Options implements Structure.ByValue {}
@@ -16,6 +18,7 @@ public class BPConverterTypesC_Options extends Structure {
 	public int mNumberOfThreads = 8; // 8, unsigned int
 	//public TCompressionAlgorithmType mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmNone; // eCompressionAlgorithmGzipLevel2
 	public int mCompressionAlgorithmType = TCompressionAlgorithmType.eCompressionAlgorithmNone.value;
+	public boolean mDisablePyramid = false; // Added by kittisopikulm 2020/11/05
 	
 	public BPConverterTypesC_Options() {
 		super(new ImarisWriterTypeMapper());
