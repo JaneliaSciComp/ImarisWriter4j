@@ -23,6 +23,7 @@ public class BPConverter {
 	static {
 		System.loadLibrary("zlib");
 		System.loadLibrary("hdf5");
+		System.loadLibrary("lz4");
 		//Debugging library names
 		//System.loadLibrary("zlibd");
 		//System.loadLibrary("hdf5_D");
