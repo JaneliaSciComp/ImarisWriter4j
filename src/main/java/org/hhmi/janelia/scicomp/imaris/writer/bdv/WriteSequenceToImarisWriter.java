@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.math3.util.ArithmeticUtils;
+import org.hhmi.janelia.scicomp.imaris.writer.BPConverterTypesC_Options;
 import org.hhmi.janelia.scicomp.imaris.writer.TCompressionAlgorithmType;
 
 import com.sun.jna.Pointer;
@@ -78,8 +79,8 @@ public class WriteSequenceToImarisWriter {
 	public static void writeImarisFile(
 			final AbstractSequenceDescription< ?, ?, ? > seq,
 			final Map< Integer, ExportMipmapInfo > perSetupMipmapInfo,
-			final TCompressionAlgorithmType compression,
-			final File hdf5File,
+			final BPConverterTypesC_Options bpOptions,
+			final File imsFile,
 			final AfterEachPlane afterEachPlane,
 			final int numCellCreatorThreads,
 			final ProgressWriter progressWriter )
@@ -92,8 +93,22 @@ public class WriteSequenceToImarisWriter {
 		for ( final BasicViewSetup setup : seq.getViewSetupsOrdered() )
 			setupIdSequenceToPartition.put( setup.getId(), setup.getId() );
 
-		final Partition partition = new Partition( hdf5File.getPath(), timepointIdSequenceToPartition, setupIdSequenceToPartition );
-		writeImarisPartitionFile( seq, perSetupMipmapInfo, compression, partition, afterEachPlane, numCellCreatorThreads, progressWriter );
+		final Partition partition = new Partition( imsFile.getPath(), timepointIdSequenceToPartition, setupIdSequenceToPartition );
+		writeImarisPartitionFile( seq, perSetupMipmapInfo, bpOptions, partition, afterEachPlane, numCellCreatorThreads, progressWriter );
+	}
+	
+	public static void writeImarisFile(
+			final AbstractSequenceDescription< ?, ?, ? > seq,
+			final Map< Integer, ExportMipmapInfo > perSetupMipmapInfo,
+			final TCompressionAlgorithmType compression,
+			final File imsFile,
+			final AfterEachPlane afterEachPlane,
+			final int numCellCreatorThreads,
+			final ProgressWriter progressWriter )
+	{
+		BPConverterTypesC_Options bpOptions = new BPConverterTypesC_Options();
+		bpOptions.mCompressionAlgorithmType = compression.value;
+		writeImarisFile( seq, perSetupMipmapInfo, bpOptions, imsFile, afterEachPlane, numCellCreatorThreads, progressWriter );
 	}
 	
 	public static void writeImarisFile(
@@ -113,13 +128,13 @@ public class WriteSequenceToImarisWriter {
 			final AbstractSequenceDescription< ?, ?, ? > seq,
 			final File imsFile,
 			final ImarisWriterOptions options) {
-		writeImarisFile( seq, options.perSetupMipmapInfo, options.compression, imsFile, options.afterEachPlane, options.numCellCreatorThreads, options.progressWriter);
+		writeImarisFile( seq, options.perSetupMipmapInfo, options.bpOptions, imsFile, options.afterEachPlane, options.numCellCreatorThreads, options.progressWriter);
 	}
 	
 	public static void writeImarisSingleFilePerSetup(
 			final SequenceDescription seq,
 			final Map< Integer, ExportMipmapInfo > perSetupMipmapInfo,
-			final TCompressionAlgorithmType compression,
+			final BPConverterTypesC_Options bpOptions,
 			final File hdf5File,
 			final AfterEachPlane afterEachPlane,
 			final int numCellCreatorThreads,
@@ -134,13 +149,13 @@ public class WriteSequenceToImarisWriter {
 			setupIdSequenceToPartition.put( setup.getId(), setup.getId() );
 
 		final Partition partition = new Partition( hdf5File.getPath(), timepointIdSequenceToPartition, setupIdSequenceToPartition );
-		writeImarisSingleFilePerSetup( seq, perSetupMipmapInfo, compression, partition, afterEachPlane, numCellCreatorThreads, progressWriter );
+		writeImarisSingleFilePerSetup( seq, perSetupMipmapInfo, bpOptions, partition, afterEachPlane, numCellCreatorThreads, progressWriter );
 	}
 	
 	public static void writeImarisSingleFilePerSetup(
 			final SequenceDescription seq,
 			final int[] subdivisions,
-			final TCompressionAlgorithmType compression,
+			final BPConverterTypesC_Options bpOptions,
 			final File imsFile,
 			final AfterEachPlane afterEachPlane,
 			final int numCellCreatorThreads,
@@ -152,14 +167,14 @@ public class WriteSequenceToImarisWriter {
 		final ExportMipmapInfo mipmapInfo = new ExportMipmapInfo( new int[][]{resolutions}, new int[][]{subdivisions} );
 		for ( final BasicViewSetup setup : seq.getViewSetupsOrdered() )
 			perSetupMipmapInfo.put( setup.getId(), mipmapInfo );
-		writeImarisSingleFilePerSetup( seq, perSetupMipmapInfo, compression, imsFile, afterEachPlane, numCellCreatorThreads, progressWriter );
+		writeImarisSingleFilePerSetup( seq, perSetupMipmapInfo, bpOptions, imsFile, afterEachPlane, numCellCreatorThreads, progressWriter );
 	}
 	
 	public static void writeImarisSingleFilePerSetup(
 			final SequenceDescription seq,
 			final File imsFile,
 			final ImarisWriterOptions options) {
-		writeImarisSingleFilePerSetup( seq, options.perSetupMipmapInfo, options.compression, imsFile, options.afterEachPlane, options.numCellCreatorThreads, options.progressWriter);
+		writeImarisSingleFilePerSetup( seq, options.perSetupMipmapInfo, options.bpOptions, imsFile, options.afterEachPlane, options.numCellCreatorThreads, options.progressWriter);
 	}
 	
 	/**
@@ -205,7 +220,7 @@ public class WriteSequenceToImarisWriter {
 	public static void writeImarisPartitionFile(
 			final AbstractSequenceDescription< ?, ?, ? > seq,
 			final Map< Integer, ExportMipmapInfo > perSetupMipmapInfo,
-			final TCompressionAlgorithmType compression,
+			final BPConverterTypesC_Options bpOptions,
 			final Partition partition,
 			final AfterEachPlane afterEachPlane,
 			final int numCellCreatorThreads,
@@ -304,7 +319,7 @@ public class WriteSequenceToImarisWriter {
 						writeViewToImarisWriterFile(
 								img,
 								timepointIdPartition, setupIdPartition,
-								mipmapInfo, compression,
+								mipmapInfo, bpOptions,
 								executorService, numCellCreatorThreads,
 								afterEachPlane, subProgressWriter);
 					}
@@ -364,7 +379,7 @@ public class WriteSequenceToImarisWriter {
 	public static void writeImarisSingleFilePerSetup(
 			final SequenceDescription seq,
 			final Map< Integer, ExportMipmapInfo > perSetupMipmapInfo,
-			final TCompressionAlgorithmType compression,
+			final BPConverterTypesC_Options bpOptions,
 			final Partition partition,
 			final AfterEachPlane afterEachPlane,
 			final int numCellCreatorThreads,
@@ -431,7 +446,7 @@ public class WriteSequenceToImarisWriter {
 				
 				// write image data for all views to the HDF5 file
 				int timepointIndex = 0;
-				final ImarisWriterDatasetIO io = new ImarisWriterDatasetIO(imsfile.getAbsolutePath(), progressWriter, compression, 1, timepointIdsSequence.size());
+				final ImarisWriterDatasetIO io = new ImarisWriterDatasetIO(imsfile.getAbsolutePath(), progressWriter, bpOptions, 1, timepointIdsSequence.size());
 				
 				for ( final int timepointIdSequence : timepointIdsSequence )
 				{
@@ -477,8 +492,8 @@ public class WriteSequenceToImarisWriter {
 						final int setupIdPartition = partition.getSetupIdSequenceToPartition().get( setupIdSequence );
 						progressWriter.out().printf( "proccessing setup %d / %d\n", ++setupIndex, numSetups );
 
-						@SuppressWarnings( "unchecked" )
 						long start = System.currentTimeMillis();
+						@SuppressWarnings( "unchecked" )
 						final RandomAccessibleInterval< UnsignedShortType > img = ( ( BasicSetupImgLoader< UnsignedShortType > ) imgLoader.getSetupImgLoader( setupIdSequence ) ).getImage( timepointIdSequence );
 						//System.out.println("Loading (ms): " + (System.currentTimeMillis() - start));
 						totalLoadingTime +=  (System.currentTimeMillis() - start);
@@ -569,14 +584,14 @@ public class WriteSequenceToImarisWriter {
 			final int timepointIdPartition,
 			final int setupIdPartition,
 			final ExportMipmapInfo mipmapInfo,
-			final TCompressionAlgorithmType compression,
+			final BPConverterTypesC_Options bpOptions,
 			final ExecutorService executorService, // TODO
 			final int numThreads, // TODO
 			final AfterEachPlane afterEachPlane,
 			ProgressWriter progressWriter )
 	{
 
-		final DatasetIO< Pointer, UnsignedShortType > io = new ImarisWriterDatasetIO("writeSequenceTest" + timepointIdPartition + ".ims", progressWriter, compression,1,1);
+		final DatasetIO< Pointer, UnsignedShortType > io = new ImarisWriterDatasetIO("writeSequenceTest" + timepointIdPartition + ".ims", progressWriter, bpOptions ,1,1);
 
 		writeDatasetToImarisWriterFile(
 				img,
@@ -648,30 +663,45 @@ public class WriteSequenceToImarisWriter {
 	}
 	
 	public static class ImarisWriterOptions implements Cloneable {
-		public TCompressionAlgorithmType compression;
 		public AfterEachPlane afterEachPlane;
 		public int numCellCreatorThreads;
 		public ProgressWriter progressWriter;
 		public Map< Integer, ExportMipmapInfo > perSetupMipmapInfo;
+		public BPConverterTypesC_Options bpOptions;
 		
-		public ImarisWriterOptions() {	}
+		public ImarisWriterOptions() {
+			bpOptions = new BPConverterTypesC_Options();
+		}
 		
 		protected ImarisWriterOptions(ImarisWriterOptions other) {
-			this.compression = other.compression;
 			this.afterEachPlane = other.afterEachPlane;
 			this.numCellCreatorThreads = other.numCellCreatorThreads;
 			this.progressWriter = other.progressWriter;
 			this.perSetupMipmapInfo = other.perSetupMipmapInfo;
+			this.bpOptions = other.bpOptions;
 		}
 		
-		public static Map< Integer, ExportMipmapInfo > perSetupMipmapInfo(final AbstractSequenceDescription< ?, ?, ? > seq, final int[] subdivisions) {
+		public static Map< Integer, ExportMipmapInfo > perSetupMipmapInfo(
+				final AbstractSequenceDescription< ?, ?, ? > seq,
+				final int[] resolutions,
+				final int[] subdivisions) {
 			final HashMap< Integer, ExportMipmapInfo > perSetupMipmapInfo = new HashMap<>();
-			final int[] resolutions = new int[ subdivisions.length ];
-			Arrays.fill(resolutions, 1);
 			final ExportMipmapInfo mipmapInfo = new ExportMipmapInfo( new int[][]{resolutions}, new int[][]{subdivisions} );
 			for ( final BasicViewSetup setup : seq.getViewSetupsOrdered() )
 				perSetupMipmapInfo.put( setup.getId(), mipmapInfo );
 			return perSetupMipmapInfo;
+		}
+		
+		public static Map< Integer, ExportMipmapInfo > perSetupMipmapInfo(
+				final AbstractSequenceDescription< ?, ?, ? > seq,
+				final int[] subdivisions) {
+			final int[] resolutions = new int[ subdivisions.length ];
+			Arrays.fill(resolutions, 1);
+			return perSetupMipmapInfo(seq, resolutions, subdivisions);
+		}
+		
+		public void setCompression(TCompressionAlgorithmType compression) {
+			bpOptions.mCompressionAlgorithmType = compression.value;
 		}
 		
 		public ImarisWriterOptions clone() {
@@ -680,7 +710,7 @@ public class WriteSequenceToImarisWriter {
 		
 		public static ImarisWriterOptions getDefault(final AbstractSequenceDescription< ?, ?, ? > seq) {
 			ImarisWriterOptions options = new ImarisWriterOptions();
-			options.compression = TCompressionAlgorithmType.eCompressionAlgorithmNone;
+			options.setCompression( TCompressionAlgorithmType.eCompressionAlgorithmNone );
 			options.afterEachPlane = new AfterEachPlane() {
 
 				@Override

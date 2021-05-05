@@ -37,6 +37,9 @@ import bdv.export.ExportScalePyramid.Block;
 import bdv.export.ExportScalePyramid.DatasetIO;
 import bdv.export.ProgressWriter;
 import bdv.export.ProgressWriterConsole;
+import mpicbg.imglib.container.basictypecontainer.array.ArrayDataAccess;
+import net.imglib2.img.basictypeaccess.ShortAccess;
+import net.imglib2.img.basictypeaccess.nio.ShortBufferAccess;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 
 public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortType > {
@@ -79,7 +82,6 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 	final boolean aAutoAdjustColorRange = false;
 	float vVoxelSizeXY = 1.0f;
 	float vVoxelSizeZ = 1.0f;
-	final TCompressionAlgorithmType compression;
 	BPConverterTypesC_ImageExtent aImageExtent;
 	BPConverterTypesC_Size5D aImageSize;
 	final private ProgressWriter progressWriter;
@@ -92,12 +94,14 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 	private long dimC;
 	private long dimT;
 	private int currentTimepointId;
+	private BPConverterTypesC_Options aOptions;
+	private BPConverterTypesC_Size5D aSample;
+	private BPConverterTypesC_DimensionSequence5D aDimensionSequence;
 	
-	public ImarisWriterDatasetIO(String aOutputFile, ProgressWriter progressWriter, TCompressionAlgorithmType compression, long dimC, long dimT) {
+	public ImarisWriterDatasetIO(String aOutputFile, ProgressWriter progressWriter, BPConverterTypesC_Options aOptions, long dimC, long dimT) {
 		this.aOutputFile = aOutputFile;
 		this.progressWriter = progressWriter;
 		this.parameterSections = new HashMap<>();
-		this.compression = compression;
 		
 		this.dimC = dimC;
 		this.dimT = dimT;
@@ -110,6 +114,31 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 		aCallbackUserData = new BPCallbackData();
 		aCallbackUserData.mImageIndex = 0;
 		aCallbackUserData.mProgress = -5;
+		
+		this.aOptions = aOptions;
+		
+		aDimensionSequence = new BPConverterTypesC_DimensionSequence5D(
+				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionX.value,
+				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionY.value,
+				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionZ.value,
+				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionC.value,
+				BPConverterTypesC_Dimension.bpConverterTypesC_DimensionT.value
+				);
+		
+		aSample = new BPConverterTypesC_Size5D( 1, 1, 1, 1, 1 );
+	}
+	
+	public ImarisWriterDatasetIO(String aOutputFile, ProgressWriter progressWriter, TCompressionAlgorithmType compression, long dimC, long dimT) {
+		this(aOutputFile, progressWriter, new BPConverterTypesC_Options(), dimC, dimT);
+		aOptions.mThumbnailSizeXY = 256;
+		aOptions.mFlipDimensionX = false;
+		aOptions.mFlipDimensionY = false;
+		aOptions.mFlipDimensionZ = false;
+		aOptions.mForceFileBlockSizeZ1 = false;
+		aOptions.mEnableLogProgress = true;
+		aOptions.mNumberOfThreads = 8;
+		aOptions.mCompressionAlgorithmType = compression.value;
+		aOptions.mDisablePyramid = false;
 	}
 	
 	public ImarisWriterDatasetIO(String aOutputFile) {
@@ -123,28 +152,11 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 			int aDataType = BPConverterTypesC_DataType.bpConverterTypesC_UInt16Type.value;
 			
 			aImageSize = new BPConverterTypesC_Size5D(dimensions[0], dimensions[1], dimensions[2], dimC, dimT);
-			BPConverterTypesC_Size5D aSample = new BPConverterTypesC_Size5D( 1, 1, 1, 1, 1 );
-			BPConverterTypesC_DimensionSequence5D aDimensionSequence = new BPConverterTypesC_DimensionSequence5D(
-					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionX.value,
-					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionY.value,
-					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionZ.value,
-					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionC.value,
-					BPConverterTypesC_Dimension.bpConverterTypesC_DimensionT.value
-					);
+
 			
 			System.out.println(Arrays.toString(blockSize));
 			
 			BPConverterTypesC_Size5D aFileBlockSize = new BPConverterTypesC_Size5D(blockSize);
-			
-			BPConverterTypesC_Options aOptions = new BPConverterTypesC_Options();
-			aOptions.mThumbnailSizeXY = 256;
-			aOptions.mFlipDimensionX = false;
-			aOptions.mFlipDimensionY = false;
-			aOptions.mFlipDimensionZ = false;
-			aOptions.mForceFileBlockSizeZ1 = false;
-			aOptions.mEnableLogProgress = true;
-			aOptions.mNumberOfThreads = 8;
-			aOptions.mCompressionAlgorithmType = this.compression.value;
 			
 			aImageExtent = new BPConverterTypesC_ImageExtent(
 					0, 0, 0,
@@ -185,6 +197,11 @@ public class ImarisWriterDatasetIO implements DatasetIO< Pointer,UnsignedShortTy
 		BPConverterTypesC_Index5D aBlockIndex = new BPConverterTypesC_Index5D(dataBlock.getGridPosition());
 		aBlockIndex.mValueT = this.currentTimepointId;
 		converter.bpImageConverterC_CopyBlockUInt16(dataset, aFileDataBlock, aBlockIndex );
+		BPConverter.checkErrors(dataset);
+	}
+	
+	public void writeBlock(Pointer dataset, ShortBufferAccess dataBlock, BPConverterTypesC_Index5D aBlockIndex) throws IOException {
+		converter.bpImageConverterC_CopyBlockUInt16(dataset, dataBlock.getCurrentStorageArray(), aBlockIndex );
 		BPConverter.checkErrors(dataset);
 	}
 	
